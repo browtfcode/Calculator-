@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculator</title>
+<style>
+:root{--bg:#eef1f0;--body:#1d2b2a;--screen:#dfe6e3;--ink:#16211f;--key:#fbfcfb;--keyink:#16211f;--op:#2f6f62;--opink:#fff;--clr:#c4553d;--shadow:#b9c4c0;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1514;--body:#1a2423;--screen:#0d1211;--ink:#e6efec;--key:#27332f;--keyink:#e6efec;--op:#3f9482;--shadow:#000}}
+:root[data-theme="dark"]{--bg:#0f1514;--body:#1a2423;--screen:#0d1211;--ink:#e6efec;--key:#27332f;--keyink:#e6efec;--op:#3f9482;--shadow:#000}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:"Inter","Segoe UI",system-ui,sans-serif}
+.calc{width:min(340px,92vw);background:var(--body);border-radius:22px;padding:18px;box-shadow:0 14px 0 -6px var(--shadow)}
+.screen{background:var(--screen);color:var(--ink);border-radius:12px;padding:12px 16px;text-align:right;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.hist{font-size:14px;opacity:.6;min-height:20px;word-break:break-all}
+.cur{font-size:40px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow-x:auto}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+button{font:inherit;font-size:20px;font-weight:500;height:58px;border:0;border-radius:12px;background:var(--key);color:var(--keyink);cursor:pointer;box-shadow:0 3px 0 var(--shadow)}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shadow)}
+button:focus-visible{outline:3px solid var(--op);outline-offset:2px}
+.op{background:var(--op);color:var(--opink)}
+.clr{background:var(--clr);color:#fff}
+.wide{grid-column:span 2}
+</style>
+</head>
+<body>
+<main class="calc">
+  <div class="screen" aria-live="polite"><div class="hist" id="hist"></div><div class="cur" id="cur">0</div></div>
+  <div class="keys" id="keys">
+    <button class="clr" data-a="clear">AC</button>
+    <button data-a="back" aria-label="Backspace">⌫</button>
+    <button data-a="percent">%</button>
+    <button class="op" data-a="op" data-v="÷">÷</button>
+    <button data-a="num" data-v="7">7</button>
+    <button data-a="num" data-v="8">8</button>
+    <button data-a="num" data-v="9">9</button>
+    <button class="op" data-a="op" data-v="×">×</button>
+    <button data-a="num" data-v="4">4</button>
+    <button data-a="num" data-v="5">5</button>
+    <button data-a="num" data-v="6">6</button>
+    <button class="op" data-a="op" data-v="−">−</button>
+    <button data-a="num" data-v="1">1</button>
+    <button data-a="num" data-v="2">2</button>
+    <button data-a="num" data-v="3">3</button>
+    <button class="op" data-a="op" data-v="+">+</button>
+    <button class="wide" data-a="num" data-v="0">0</button>
+    <button data-a="dot">.</button>
+    <button class="op" data-a="eq">=</button>
+  </div>
+</main>
+<script>
+let cur="0", prev=null, op=null, fresh=false;
+const curEl=document.getElementById("cur"), histEl=document.getElementById("hist");
+const calc=(a,b,o)=>{a=parseFloat(a);b=parseFloat(b);
+  if(o==="+")return a+b; if(o==="−")return a-b; if(o==="×")return a*b;
+  if(o==="÷")return b===0?NaN:a/b; return b;};
+const fmt=n=>{if(!isFinite(n))return"Can't divide by zero";return String(parseFloat(n.toPrecision(12)));};
+function render(){curEl.textContent=cur;histEl.textContent=prev!==null&&op?prev+" "+op:"";}
+function run(a,v){
+  if(cur==="Can't divide by zero"&&a!=="clear"){cur="0";}
+  if(a==="num"){cur=(fresh||cur==="0")?v:(cur.length<14?cur+v:cur);fresh=false;}
+  else if(a==="dot"){if(fresh){cur="0.";fresh=false;}else if(!cur.includes("."))cur+=".";}
+  else if(a==="clear"){cur="0";prev=null;op=null;fresh=false;}
+  else if(a==="back"){if(!fresh)cur=cur.length>1?cur.slice(0,-1):"0";if(cur==="-")cur="0";}
+  else if(a==="percent"){cur=fmt(parseFloat(cur)/100);fresh=true;}
+  else if(a==="op"){
+    if(op&&!fresh){cur=fmt(calc(prev,cur,op));}
+    prev=cur;op=v;fresh=true;
+    if(isNaN(parseFloat(cur))){prev=null;op=null;}
+  }
+  else if(a==="eq"){
+    if(op){const r=calc(prev,cur,op);histEl.textContent=prev+" "+op+" "+cur+" =";cur=fmt(r);prev=null;op=null;fresh=true;curEl.textContent=cur;return;}
+  }
+  render();
+}
+document.getElementById("keys").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(b)run(b.dataset.a,b.dataset.v);});
+document.addEventListener("keydown",e=>{
+  const k=e.key;
+  if(/^[0-9]$/.test(k))run("num",k);
+  else if(k===".")run("dot");
+  else if(k==="+")run("op","+");
+  else if(k==="-")run("op","−");
+  else if(k==="*")run("op","×");
+  else if(k==="/"){e.preventDefault();run("op","÷");}
+  else if(k==="%")run("percent");
+  else if(k==="Enter"||k==="="){e.preventDefault();run("eq");}
+  else if(k==="Backspace")run("back");
+  else if(k==="Escape")run("clear");
+});
+render();
+</script>
+</body>
+</html>
